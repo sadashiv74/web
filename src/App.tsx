@@ -6,6 +6,7 @@ import Footer from './components/Layout/Footer';
 import Home from './pages/Home';
 import MockTests from './pages/MockTests';
 import Analytics from './pages/Analytics';
+import UploadPaper from './pages/UploadPaper';
 
 function App() {
   const { darkMode } = useAppStore();
@@ -27,6 +28,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/mock-tests" element={<MockTests />} />
             <Route path="/analytics" element={<Analytics />} />
+            <Route path="/upload" element={<UploadPaper />} />
           </Routes>
         </main>
         <Footer />

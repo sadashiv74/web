@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Download, 
@@ -8,112 +8,42 @@ import {
   BookOpen, 
   FileText,
   Clock,
-  TrendingUp
+  TrendingUp,
+  Loader2
 } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
+import { supabase } from '../../lib/supabase';
+import { Paper } from '../../types';
 
 const FeaturedPapers: React.FC = () => {
   const { darkMode } = useAppStore();
+  const [papers, setPapers] = useState<Paper[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data for featured papers
-  const featuredPapers = [
-    {
-      id: '1',
-      title: 'Data Structures and Algorithms',
-      subject: 'DSA',
-      branch: 'Computer Engineering',
-      semester: 3,
-      year: 2024,
-      examType: 'External',
-      downloadCount: 1250,
-      rating: 4.8,
-      difficulty: 'Medium',
-      hasSolutions: true,
-      isNew: true,
-      uploadDate: '2024-01-15',
-      tags: ['Arrays', 'Trees', 'Graphs', 'Dynamic Programming']
-    },
-    {
-      id: '2',
-      title: 'Database Management Systems',
-      subject: 'DBMS',
-      branch: 'Information Technology',
-      semester: 4,
-      year: 2024,
-      examType: 'Internal Assessment',
-      downloadCount: 980,
-      rating: 4.6,
-      difficulty: 'Easy',
-      hasolutions: true,
-      isNew: false,
-      uploadDate: '2024-01-10',
-      tags: ['SQL', 'Normalization', 'Transactions', 'Indexing']
-    },
-    {
-      id: '3',
-      title: 'Computer Networks',
-      subject: 'CN',
-      branch: 'Computer Engineering',
-      semester: 5,
-      year: 2023,
-      examType: 'External',
-      downloadCount: 1450,
-      rating: 4.9,
-      difficulty: 'Hard',
-      hasSolutions: true,
-      isNew: false,
-      uploadDate: '2024-01-08',
-      tags: ['OSI Model', 'TCP/IP', 'Routing', 'Security']
-    },
-    {
-      id: '4',
-      title: 'Software Engineering',
-      subject: 'SE',
-      branch: 'Information Technology',
-      semester: 6,
-      year: 2024,
-      examType: 'External',
-      downloadCount: 720,
-      rating: 4.4,
-      difficulty: 'Medium',
-      hasSolutions: false,
-      isNew: true,
-      uploadDate: '2024-01-12',
-      tags: ['SDLC', 'Testing', 'Project Management', 'Agile']
-    },
-    {
-      id: '5',
-      title: 'Machine Learning',
-      subject: 'ML',
-      branch: 'Computer Engineering',
-      semester: 7,
-      year: 2024,
-      examType: 'External',
-      downloadCount: 890,
-      rating: 4.7,
-      difficulty: 'Hard',
-      hasSolutions: true,
-      isNew: true,
-      uploadDate: '2024-01-14',
-      tags: ['Neural Networks', 'Deep Learning', 'Algorithms', 'Python']
-    },
-    {
-      id: '6',
-      title: 'Digital Signal Processing',
-      subject: 'DSP',
-      branch: 'Electronics & Telecommunication',
-      semester: 6,
-      year: 2024,
-      examType: 'External',
-      downloadCount: 650,
-      rating: 4.5,
-      difficulty: 'Hard',
-      hasSolutions: true,
-      isNew: false,
-      uploadDate: '2024-01-05',
-      tags: ['Filters', 'FFT', 'Z-Transform', 'Applications']
+  useEffect(() => {
+    fetchFeaturedPapers();
+  }, []);
+
+  const fetchFeaturedPapers = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('papers')
+        .select('*')
+        .eq('verified', true)
+        .order('download_count', { ascending: false })
+        .limit(6);
+
+      if (error) throw error;
+      setPapers(data || []);
+    } catch (err) {
+      console.error('Error fetching papers:', err);
+      setError('Failed to load papers');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -124,16 +54,81 @@ const FeaturedPapers: React.FC = () => {
     }
   };
 
-  const handleDownload = (paperId: string, title: string) => {
-    // In a real app, this would trigger the actual download
-    console.log(`Downloading paper: ${title}`);
-    // Update download count in database
+  const handleDownload = async (paperId: string, title: string) => {
+    try {
+      // Update download count
+      const { error } = await supabase
+        .from('papers')
+        .update({ download_count: papers.find(p => p.id === paperId)?.download_count + 1 || 1 })
+        .eq('id', paperId);
+
+      if (error) throw error;
+
+      // Refresh papers to show updated count
+      fetchFeaturedPapers();
+      
+      console.log(`Downloading paper: ${title}`);
+    } catch (err) {
+      console.error('Error updating download count:', err);
+    }
   };
 
   const handleQuickView = (paperId: string) => {
-    // Open paper preview modal
     console.log(`Quick view for paper: ${paperId}`);
   };
+
+  if (loading) {
+    return (
+      <section className={`py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className={`h-8 w-8 animate-spin ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} />
+            <span className={`ml-3 text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Loading featured papers...
+            </span>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className={`py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-12">
+            <div className={`text-lg ${darkMode ? 'text-red-400' : 'text-red-600'} mb-4`}>
+              {error}
+            </div>
+            <button
+              onClick={fetchFeaturedPapers}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (papers.length === 0) {
+    return (
+      <section className={`py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-12">
+            <FileText className={`h-16 w-16 mx-auto mb-4 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />
+            <h3 className={`text-xl font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              No Papers Available
+            </h3>
+            <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Papers will appear here once they are uploaded by administrators.
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className={`py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
@@ -172,7 +167,7 @@ const FeaturedPapers: React.FC = () => {
 
         {/* Papers Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {featuredPapers.map((paper, index) => (
+          {papers.map((paper, index) => (
             <motion.div
               key={paper.id}
               initial={{ opacity: 0, y: 20 }}
@@ -182,13 +177,6 @@ const FeaturedPapers: React.FC = () => {
                 darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
               } border rounded-xl p-6 hover:shadow-xl transition-all duration-300 cursor-pointer`}
             >
-              {/* New Badge */}
-              {paper.isNew && (
-                <div className="absolute -top-2 -right-2 bg-gradient-to-r from-blue-600 to-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                  NEW
-                </div>
-              )}
-
               {/* Paper Header */}
               <div className="mb-4">
                 <div className="flex items-start justify-between mb-2">
@@ -198,7 +186,7 @@ const FeaturedPapers: React.FC = () => {
                   <div className="flex items-center space-x-1">
                     <Star className="h-4 w-4 text-yellow-500 fill-current" />
                     <span className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                      {paper.rating}
+                      {paper.rating.toFixed(1)}
                     </span>
                   </div>
                 </div>
@@ -207,7 +195,7 @@ const FeaturedPapers: React.FC = () => {
                   <span className={`px-2 py-1 rounded-full ${getDifficultyColor(paper.difficulty)} font-medium`}>
                     {paper.difficulty}
                   </span>
-                  {paper.hasSolutions && (
+                  {paper.solution_url && (
                     <span className="px-2 py-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full font-medium">
                       Solutions ✓
                     </span>
@@ -230,13 +218,13 @@ const FeaturedPapers: React.FC = () => {
                   <div className="flex items-center space-x-2">
                     <Calendar className={`h-4 w-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
                     <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {paper.year} • {paper.examType}
+                      {paper.year} • {paper.exam_type}
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Download className={`h-4 w-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
                     <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {paper.downloadCount.toLocaleString()}
+                      {paper.download_count.toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -291,7 +279,7 @@ const FeaturedPapers: React.FC = () => {
                 <div className="flex items-center space-x-2">
                   <Clock className={`h-3 w-3 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
                   <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                    Uploaded {new Date(paper.uploadDate).toLocaleDateString()}
+                    Uploaded {new Date(paper.upload_date).toLocaleDateString()}
                   </span>
                 </div>
               </div>

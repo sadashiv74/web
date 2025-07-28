@@ -205,11 +205,11 @@ const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClose }) =>
                 {/* Demo Credentials */}
                 <div className={`p-3 rounded-lg ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'} border`}>
                   <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Demo Credentials:
+                    Admin Credentials:
                   </p>
                   <div className={`text-xs space-y-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    <div>ID: admin_mu_eng_2024</div>
-                    <div>Password: MU_Papers_Secure@2024</div>
+                    <div>ID: Assassin@01</div>
+                    <div>Password: Assassin@01</div>
                   </div>
                 </div>
               </form>

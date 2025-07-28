@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   FileText, 
@@ -8,19 +8,71 @@ import {
   TrendingUp, 
   Clock,
   Award,
-  Target
+  Target,
+  Loader2
 } from 'lucide-react';
 import { useAppStore } from '../../stores/appStore';
+import { supabase } from '../../lib/supabase';
 
 const QuickStats: React.FC = () => {
   const { darkMode } = useAppStore();
+  const [stats, setStats] = useState({
+    totalPapers: 0,
+    totalMockTests: 0,
+    totalDownloads: 0,
+    activeStudents: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch papers count
+      const { count: papersCount } = await supabase
+        .from('papers')
+        .select('*', { count: 'exact', head: true });
+
+      // Fetch mock tests count
+      const { count: mockTestsCount } = await supabase
+        .from('mock_tests')
+        .select('*', { count: 'exact', head: true });
+
+      // Fetch total downloads
+      const { data: papersData } = await supabase
+        .from('papers')
+        .select('download_count');
+
+      const totalDownloads = papersData?.reduce((sum, paper) => sum + paper.download_count, 0) || 0;
+
+      // Fetch user sessions count (active students)
+      const { count: sessionsCount } = await supabase
+        .from('user_sessions')
+        .select('*', { count: 'exact', head: true });
+
+      setStats({
+        totalPapers: papersCount || 0,
+        totalMockTests: mockTestsCount || 0,
+        totalDownloads,
+        activeStudents: sessionsCount || 0
+      });
+    } catch (err) {
+      console.error('Error fetching stats:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const mainStats = [
     {
       icon: FileText,
       label: 'Question Papers',
-      value: '1,247',
-      change: '+15',
+      value: stats.totalPapers.toString(),
+      change: '+12%',
       changeType: 'increase',
       color: 'from-blue-500 to-blue-600',
       bgColor: 'bg-blue-50 dark:bg-blue-900/20',
@@ -29,8 +81,8 @@ const QuickStats: React.FC = () => {
     {
       icon: BookOpen,
       label: 'Mock Tests',
-      value: '156',
-      change: '+8',
+      value: stats.totalMockTests.toString(),
+      change: '+8%',
       changeType: 'increase',
       color: 'from-green-500 to-green-600',
       bgColor: 'bg-green-50 dark:bg-green-900/20',
@@ -39,8 +91,8 @@ const QuickStats: React.FC = () => {
     {
       icon: Users,
       label: 'Active Students',
-      value: '52.1K',
-      change: '+2.3K',
+      value: stats.activeStudents > 1000 ? `${(stats.activeStudents / 1000).toFixed(1)}K` : stats.activeStudents.toString(),
+      change: '+7%',
       changeType: 'increase',
       color: 'from-purple-500 to-purple-600',
       bgColor: 'bg-purple-50 dark:bg-purple-900/20',
@@ -49,8 +101,8 @@ const QuickStats: React.FC = () => {
     {
       icon: Download,
       label: 'Total Downloads',
-      value: '1.2M',
-      change: '+125K',
+      value: stats.totalDownloads > 1000 ? `${(stats.totalDownloads / 1000).toFixed(1)}K` : stats.totalDownloads.toString(),
+      change: '+18%',
       changeType: 'increase',
       color: 'from-orange-500 to-orange-600',
       bgColor: 'bg-orange-50 dark:bg-orange-900/20',
@@ -84,6 +136,21 @@ const QuickStats: React.FC = () => {
       description: 'Monthly active user growth'
     }
   ];
+
+  if (loading) {
+    return (
+      <section className={`py-16 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className={`h-8 w-8 animate-spin ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} />
+            <span className={`ml-3 text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Loading statistics...
+            </span>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className={`py-16 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
@@ -213,31 +280,38 @@ const QuickStats: React.FC = () => {
             </div>
           </div>
           
-          <div className="space-y-3">
-            {[
-              { action: 'New paper uploaded', subject: 'Machine Learning - Sem 7', time: '2 min ago' },
-              { action: 'Mock test completed', subject: 'DBMS - 50 questions', time: '5 min ago' },
-              { action: 'Solution verified', subject: 'Data Structures - External 2024', time: '8 min ago' },
-              { action: 'New student joined', subject: 'Computer Engineering', time: '12 min ago' },
-            ].map((activity, index) => (
-              <div key={index} className="flex items-center justify-between py-2">
-                <div className="flex items-center space-x-3">
-                  <div className={`w-2 h-2 bg-blue-500 rounded-full`} />
-                  <div>
-                    <span className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                      {activity.action}:
-                    </span>
-                    <span className={`text-sm ml-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {activity.subject}
-                    </span>
+          {stats.totalPapers === 0 && stats.totalMockTests === 0 ? (
+            <div className="text-center py-8">
+              <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Activity will appear here once papers and tests are uploaded.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {[
+                { action: 'Platform initialized', subject: 'Ready for content uploads', time: 'Just now' },
+                { action: 'Database connected', subject: 'All systems operational', time: '1 min ago' },
+                { action: 'Admin access configured', subject: 'Upload functionality enabled', time: '2 min ago' },
+              ].map((activity, index) => (
+                <div key={index} className="flex items-center justify-between py-2">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-2 h-2 bg-blue-500 rounded-full`} />
+                    <div>
+                      <span className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                        {activity.action}:
+                      </span>
+                      <span className={`text-sm ml-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {activity.subject}
+                      </span>
+                    </div>
                   </div>
+                  <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                    {activity.time}
+                  </span>
                 </div>
-                <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                  {activity.time}
-                </span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </motion.div>
       </div>
     </section>
